@@ -18,7 +18,9 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
-app = Flask(__name__)
+app = Flask(__name__,
+            template_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'frontend', 'templates'),
+            static_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'frontend', 'static'))
 app.secret_key = 'fincheck_super_secret_session_key_19385'
 
 # Load Trained model and scaler
@@ -38,7 +40,7 @@ except Exception as e:
 DATABASE_PATH = os.path.join(MODEL_DIR, 'database.db')
 
 # File Upload configurations
-UPLOAD_FOLDER = os.path.join(MODEL_DIR, 'static', 'uploads')
+UPLOAD_FOLDER = os.path.join(app.static_folder, 'uploads')
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)

@@ -1,9 +1,9 @@
 # Local SQLite Database
-fincheck/database.db
+fincheck/backend/database.db
 
 # User Uploaded files
-fincheck/static/uploads/*
-!fincheck/static/uploads/.gitkeep
+fincheck/frontend/static/uploads/*
+!fincheck/frontend/static/uploads/.gitkeep
 
 # Python temporary files & cache
 __pycache__/
