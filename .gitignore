@@ -1,0 +1,16 @@
+# Local SQLite Database
+fincheck/database.db
+
+# User Uploaded files
+fincheck/static/uploads/*
+!fincheck/static/uploads/.gitkeep
+
+# Python temporary files & cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Operating System files
+.DS_Store
+Thumbs.db
