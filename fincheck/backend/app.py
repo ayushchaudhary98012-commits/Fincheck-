@@ -145,36 +145,14 @@ def login_route():
             conn.close()
             
             if user and check_password_hash(user['password_hash'], password):
-                # Generate 6-digit OTP code
-                otp = f"{random.randint(100000, 999999)}"
-                expiry = (datetime.now() + timedelta(minutes=5)).strftime('%Y-%m-%d %H:%M:%S')
+                session['user_id'] = user['id']
+                session['username'] = user['username']
+                session['role'] = user['role']
                 
-                # Save OTP to database
-                conn = get_db_connection()
-                cursor = conn.cursor()
-                cursor.execute(
-                    "UPDATE users SET otp_code = ?, otp_expiry = ? WHERE id = ?",
-                    (otp, expiry, user['id'])
-                )
-                conn.commit()
-                conn.close()
-                
-                # Staged user session identifier
-                session['pre_auth_user_id'] = user['id']
-                
-                # Print simulated OTP to console log
-                print("\n" + "="*50)
-                print(f"SIMULATED OTP DISPATCH")
-                print(f"To Username: {user['username']}")
-                print(f"Masked Email: {user['email']}")
-                print(f"Masked Phone: {user['phone']}")
-                print(f"ONE-TIME PASSCODE: {otp}")
-                print("="*50 + "\n")
-                
-                # Flash OTP code for demonstration convenience
-                flash(f"[DEMO ONLY] OTP code sent: {otp}", "info")
-                
-                return redirect(url_for('otp_verification_route'))
+                flash(f"Welcome back, {user['username']}! Logged in successfully.", "success")
+                if user['role'] == 'admin':
+                    return redirect(url_for('admin_dashboard'))
+                return redirect(url_for('applicant_dashboard'))
             else:
                 flash("Invalid username or password.", "error")
                 return render_template('login.html')
@@ -196,7 +174,7 @@ def login_route():
                     (username, hashed_pass, email, phone, role)
                 )
                 conn.commit()
-                flash("Registration successful! Please log in to verify your account using OTP.", "success")
+                flash("Registration successful! Please log in to access your account.", "success")
                 return redirect(url_for('login_route'))
             except sqlite3.IntegrityError:
                 flash("Username, Email, or Phone already registered.", "error")
@@ -210,132 +188,6 @@ def logout_route():
     session.clear()
     flash("Successfully logged out.", "success")
     return redirect(url_for('landing'))
-
-# --- Two-Step OTP Verification Helpers & Routes ---
-
-def mask_email(email):
-    if not email or '@' not in email:
-        return email
-    parts = email.split('@')
-    name = parts[0]
-    domain = parts[1]
-    if len(name) <= 2:
-        masked_name = name[0] + '*'
-    else:
-        masked_name = name[0] + '*' * (len(name) - 2) + name[-1]
-    return f"{masked_name}@{domain}"
-
-def mask_phone(phone):
-    if not phone:
-        return "Not Provided"
-    if len(phone) <= 4:
-        return "****"
-    return "*" * (len(phone) - 4) + phone[-4:]
-
-@app.route('/login/otp', methods=['GET', 'POST'])
-def otp_verification_route():
-    if 'user_id' in session:
-        if session.get('role') == 'admin':
-            return redirect(url_for('admin_dashboard'))
-        return redirect(url_for('applicant_dashboard'))
-        
-    pre_auth_id = session.get('pre_auth_user_id')
-    if not pre_auth_id:
-        flash("Please log in first.", "error")
-        return redirect(url_for('login_route'))
-        
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE id = ?", (pre_auth_id,))
-    user = cursor.fetchone()
-    conn.close()
-    
-    if not user:
-        flash("User record not found.", "error")
-        return redirect(url_for('login_route'))
-        
-    if request.method == 'POST':
-        entered_otp = request.form.get('otp', '').strip()
-        
-        # Check expiry
-        now = datetime.now()
-        expiry_dt = None
-        if user['otp_expiry']:
-            try:
-                expiry_dt = datetime.strptime(user['otp_expiry'], '%Y-%m-%d %H:%M:%S')
-            except ValueError:
-                pass
-                
-        if not expiry_dt or now > expiry_dt:
-            flash("Verification code has expired. Please request a new one.", "error")
-            return render_template('otp.html', email_masked=mask_email(user['email']), phone_masked=mask_phone(user['phone']))
-            
-        if entered_otp == user['otp_code']:
-            # Clear OTP in database
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("UPDATE users SET otp_code = NULL, otp_expiry = NULL WHERE id = ?", (user['id'],))
-            conn.commit()
-            conn.close()
-            
-            # Elevate to active session
-            session.pop('pre_auth_user_id', None)
-            session['user_id'] = user['id']
-            session['username'] = user['username']
-            session['role'] = user['role']
-            
-            flash(f"Welcome, {user['username']}! Verification successful.", "success")
-            if user['role'] == 'admin':
-                return redirect(url_for('admin_dashboard'))
-            return redirect(url_for('applicant_dashboard'))
-        else:
-            flash("Incorrect verification code.", "error")
-            
-    # Mask details for display
-    email_masked = mask_email(user['email'])
-    phone_masked = mask_phone(user['phone'])
-    
-    return render_template('otp.html', email_masked=email_masked, phone_masked=phone_masked)
-
-@app.route('/login/otp/resend', methods=['POST'])
-def otp_resend_route():
-    pre_auth_id = session.get('pre_auth_user_id')
-    if not pre_auth_id:
-        flash("Please log in first.", "error")
-        return redirect(url_for('login_route'))
-        
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE id = ?", (pre_auth_id,))
-    user = cursor.fetchone()
-    
-    if not user:
-        conn.close()
-        flash("User record not found.", "error")
-        return redirect(url_for('login_route'))
-        
-    # Generate a new 6-digit OTP code
-    otp = f"{random.randint(100000, 999999)}"
-    expiry = (datetime.now() + timedelta(minutes=5)).strftime('%Y-%m-%d %H:%M:%S')
-    
-    cursor.execute(
-        "UPDATE users SET otp_code = ?, otp_expiry = ? WHERE id = ?",
-        (otp, expiry, user['id'])
-    )
-    conn.commit()
-    conn.close()
-    
-    # Print simulated OTP to console log
-    print("\n" + "="*50)
-    print(f"RESENT SIMULATED OTP DISPATCH")
-    print(f"To Username: {user['username']}")
-    print(f"Masked Email: {user['email']}")
-    print(f"Masked Phone: {user['phone']}")
-    print(f"ONE-TIME PASSCODE: {otp}")
-    print("="*50 + "\n")
-    
-    flash(f"[DEMO ONLY] New OTP code sent: {otp}", "info")
-    return redirect(url_for('otp_verification_route'))
 
 # --- Applicant Flow ---
 

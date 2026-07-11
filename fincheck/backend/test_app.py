@@ -47,43 +47,19 @@ class FinCheckTestCase(unittest.TestCase):
             'confirm_password': password
         }, follow_redirects=True)
         
-        # 2. Login (staged)
-        self.client.post('/login', data={
+        # 2. Login
+        return self.client.post('/login', data={
             'action': 'login',
             'username': username,
             'password': password
-        }, follow_redirects=True)
-        
-        # 3. Retrieve OTP from DB
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT otp_code FROM users WHERE username = ?", (username,))
-        otp = cursor.fetchone()[0]
-        conn.close()
-        
-        # 4. Verify OTP
-        return self.client.post('/login/otp', data={
-            'otp': otp
         }, follow_redirects=True)
 
     def login_existing_user(self, username, password):
-        # 1. Login (staged)
-        self.client.post('/login', data={
+        # Login
+        return self.client.post('/login', data={
             'action': 'login',
             'username': username,
             'password': password
-        }, follow_redirects=True)
-        
-        # 2. Retrieve OTP from DB
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT otp_code FROM users WHERE username = ?", (username,))
-        otp = cursor.fetchone()[0]
-        conn.close()
-        
-        # 3. Verify OTP
-        return self.client.post('/login/otp', data={
-            'otp': otp
         }, follow_redirects=True)
         
     def tearDown(self):
@@ -118,9 +94,9 @@ class FinCheckTestCase(unittest.TestCase):
             'confirm_password': 'testpassword'
         }, follow_redirects=True)
         self.assertEqual(res.status_code, 200)
-        self.assertIn(b'Please log in to verify your account using OTP', res.data)
+        self.assertIn(b'Registration successful! Please log in to access your account.', res.data)
         
-        # Login & verify OTP
+        # Login
         res = self.login_existing_user('test_applicant', 'testpassword')
         self.assertEqual(res.status_code, 200)
         self.assertIn(b'My Dashboard', res.data) # should land on applicant dashboard
