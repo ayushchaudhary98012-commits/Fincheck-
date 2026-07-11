@@ -1008,3 +1008,81 @@ footer {
         gap: 0;
     }
 }
+
+/* Inline Input wrapper inside slider header */
+.input-inline-wrap {
+    display: inline-flex;
+    align-items: center;
+    background: var(--bg-primary);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 4px 10px;
+    transition: var(--transition);
+}
+
+.input-inline-wrap:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.inline-calc-input {
+    border: none;
+    background: transparent;
+    outline: none;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--primary);
+    width: 100px;
+    text-align: right;
+}
+
+/* Hide spin-buttons in number inputs */
+.inline-calc-input::-webkit-outer-spin-button,
+.inline-calc-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.inline-calc-input {
+    -moz-appearance: textfield; /* Firefox */
+}
+
+.currency-symbol {
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-right: 4px;
+    font-size: 0.9rem;
+}
+
+/* Quick Select Chips */
+.quick-select-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.chip-btn {
+    background: var(--bg-primary);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.chip-btn:hover {
+    background: var(--primary-light);
+    color: var(--primary);
+    border-color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.chip-btn.active {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+}
