@@ -69,8 +69,8 @@ class FinCheckTestCase(unittest.TestCase):
         # Test Landing Page loads
         res = self.client.get('/')
         self.assertEqual(res.status_code, 200)
-        self.assertIn(b'Assess Your', res.data)
-        self.assertIn(b'Loan Eligibility', res.data)
+        self.assertIn(b'Trust Scoring', res.data)
+        self.assertIn(b'P2P Matching', res.data)
         
         # Test Calculator Page loads
         res = self.client.get('/calculator')
@@ -99,7 +99,7 @@ class FinCheckTestCase(unittest.TestCase):
         # Login
         res = self.login_existing_user('test_applicant', 'testpassword')
         self.assertEqual(res.status_code, 200)
-        self.assertIn(b'My Dashboard', res.data) # should land on applicant dashboard
+        self.assertIn(b'Borrower Dashboard', res.data) # should land on applicant dashboard
         
         # Test logout
         res = self.client.get('/logout', follow_redirects=True)
@@ -242,22 +242,44 @@ class FinCheckTestCase(unittest.TestCase):
         self.assertTrue(upload_data['success'])
         self.assertEqual(upload_data['status'], 'Verified') # auto-verified
         
-        # 4. Check trust details again (should increase score by 30 points -> 60 points -> Silver level)
+        # 4. Check trust details again (should increase score by 15 points -> 45 points -> Bronze level)
         res = self.client.get('/api/vendor/trust-score')
         self.assertEqual(res.status_code, 200)
         data = json.loads(res.data)
         self.assertTrue(data['success'])
-        self.assertEqual(data['score'], 60)
-        self.assertEqual(data['level'], 'Silver')
+        self.assertEqual(data['score'], 45)
+        self.assertEqual(data['level'], 'Bronze')
         
-        # 5. Login as Admin to reject the document
+        # Upload another document: Aadhaar Card (+15 points)
+        file_data2 = (io.BytesIO(b"dummy aadhaar details"), 'aadhaar.pdf')
+        res = self.client.post('/api/vendor/upload', data={
+            'file': file_data2,
+            'document_type': 'aadhaar_verification'
+        })
+        self.assertEqual(res.status_code, 200)
+        
+        # Upload another document: Bank Statement (+15 points)
+        file_data3 = (io.BytesIO(b"dummy bank details"), 'bank.pdf')
+        res = self.client.post('/api/vendor/upload', data={
+            'file': file_data3,
+            'document_type': 'bank_statement'
+        })
+        self.assertEqual(res.status_code, 200)
+        
+        # Now score is 30 + 15 + 15 + 15 = 75 points -> Gold level!
+        res = self.client.get('/api/vendor/trust-score')
+        data = json.loads(res.data)
+        self.assertEqual(data['score'], 75)
+        self.assertEqual(data['level'], 'Gold')
+        
+        # 5. Login as Admin to reject the last document
         self.client.get('/logout')
         self.login_existing_user('admin', 'admin123')
         
-        # Find document id
+        # Find document id for bank_statement
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT id FROM vendor_documents ORDER BY id DESC LIMIT 1")
+        cursor.execute("SELECT id FROM vendor_documents WHERE document_type = 'bank_statement' ORDER BY id DESC LIMIT 1")
         doc_row = cursor.fetchone()
         conn.close()
         self.assertIsNotNone(doc_row)
@@ -269,14 +291,14 @@ class FinCheckTestCase(unittest.TestCase):
         })
         self.assertEqual(res.status_code, 200)
         
-        # 6. Check trust details again for user (should be back to 30 points -> Bronze)
+        # 6. Check trust details again for user (should be 30 + 15 + 15 = 60 points -> Silver level)
         self.client.get('/logout')
         self.login_existing_user('vendor_test', 'password123')
         
         res = self.client.get('/api/vendor/trust-score')
         data = json.loads(res.data)
-        self.assertEqual(data['score'], 30)
-        self.assertEqual(data['level'], 'Bronze')
+        self.assertEqual(data['score'], 60)
+        self.assertEqual(data['level'], 'Silver')
 
     def test_vendor_document_verification_with_fake_content(self):
         # 1. Register and login applicant
