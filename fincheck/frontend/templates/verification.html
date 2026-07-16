@@ -168,7 +168,7 @@
         <h2 style="font-weight: 700; color: var(--text-primary);">Document Trust Center</h2>
         <p style="color: var(--text-secondary);">Verify your financial credentials to calculate your Platform Trust Score.</p>
     </div>
-    <a href="/applicant/dashboard" class="btn btn-secondary">
+    <a href="{% if session.get('role') == 'lender' %}/lender/dashboard{% else %}/applicant/dashboard{% endif %}" class="btn btn-secondary">
         <i class="fas fa-arrow-left"></i> Back to Dashboard
     </a>
 </div>

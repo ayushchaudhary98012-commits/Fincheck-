@@ -616,7 +616,7 @@ def applicant_dashboard():
     # Fetch matched lenders
     cursor.execute("""
         SELECT m.id as match_id, m.compatibility_score, m.reasons, m.lender_status, m.borrower_status,
-               u.username as lender_name, u.email as lender_email, u.phone as lender_phone,
+               u.id as lender_user_id, u.username as lender_name, u.email as lender_email, u.phone as lender_phone,
                lp.interest_rate
         FROM matches m
         JOIN applications a ON m.application_id = a.id
@@ -631,6 +631,7 @@ def applicant_dashboard():
     for r in matches_rows:
         md = dict(r)
         md['reasons'] = json.loads(r['reasons'])
+        md['lender_trust_score'] = compute_trust_score(r['lender_user_id'])
         matches.append(md)
         
     conn.close()
@@ -952,6 +953,9 @@ def lender_dashboard():
         md['trust_score'] = compute_trust_score(r['borrower_id'])
         matches.append(md)
         
+    score = compute_trust_score(session['user_id'])
+    level, _ = get_trust_level(score)
+    
     conn.close()
     return render_template(
         'dashboard_lender.html',
@@ -960,7 +964,9 @@ def lender_dashboard():
         available_borrowers=available_borrowers,
         pending_requests=pending_requests,
         today_matches=today_matches,
-        avg_trust=avg_trust
+        avg_trust=avg_trust,
+        trust_score=score,
+        trust_level=level
     )
 
 @app.route('/api/lender/preferences/save', methods=['POST'])
@@ -1685,12 +1691,13 @@ def chatbot_api():
 # --- Vendor Document Verification Routes ---
 
 @app.route('/applicant/verification')
-@login_required('applicant')
+@app.route('/lender/verification')
+@login_required()
 def vendor_verification_ui():
     return render_template('verification.html')
 
 @app.route('/api/vendor/upload', methods=['POST'])
-@login_required('applicant')
+@login_required()
 def vendor_upload_document():
     if 'file' not in request.files:
         return jsonify({'success': False, 'error': 'No file segment in request'}), 400

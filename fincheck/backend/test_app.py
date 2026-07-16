@@ -335,6 +335,39 @@ class FinCheckTestCase(unittest.TestCase):
         upload_data = json.loads(res.data)
         self.assertEqual(upload_data['status'], 'Rejected') # should be rejected due to content
 
+    def test_lender_document_verification(self):
+        # 1. Register and login lender
+        self.register_and_login('lender_test_verif', 'password123', 'lender_verif@test.com', '0987654321', role='lender')
+        
+        # Access lender dashboard (should render fine)
+        res = self.client.get('/lender/dashboard')
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(b'Lender Trust Profile Verification', res.data)
+        
+        # 2. Check initial trust details (should start at 30, level Bronze)
+        res = self.client.get('/api/vendor/trust-score')
+        self.assertEqual(res.status_code, 200)
+        data = json.loads(res.data)
+        self.assertTrue(data['success'])
+        self.assertEqual(data['score'], 30)
+        
+        # 3. Simulate file upload (valid mock PAN card file -> +15 points)
+        import io
+        file_data = (io.BytesIO(b"dummy pan card image data"), 'pan.png')
+        res = self.client.post('/api/vendor/upload', data={
+            'file': file_data,
+            'document_type': 'pan_verification'
+        })
+        self.assertEqual(res.status_code, 200)
+        upload_data = json.loads(res.data)
+        self.assertTrue(upload_data['success'])
+        self.assertEqual(upload_data['status'], 'Verified')
+        
+        # Check trust details again (should be 45)
+        res = self.client.get('/api/vendor/trust-score')
+        data = json.loads(res.data)
+        self.assertEqual(data['score'], 45)
+
     def test_otp_verification_flow(self):
         # 1. Verify invalid OTP returns error
         res = self.client.post('/api/auth/verify-otp', data={

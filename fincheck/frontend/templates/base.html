@@ -35,6 +35,7 @@
                     <li><a href="/admin/dashboard" class="nav-link"><i class="fas fa-chart-pie"></i> Admin Dashboard</a></li>
                 {% elif session.get('role') == 'lender' %}
                     <li><a href="/lender/dashboard" class="nav-link"><i class="fas fa-wallet"></i> Lender Portal</a></li>
+                    <li><a href="/lender/verification" class="nav-link"><i class="fas fa-check-double"></i> Verify Trust</a></li>
                 {% else %}
                     <li><a href="/applicant/dashboard" class="nav-link"><i class="fas fa-columns"></i> Borrower Dashboard</a></li>
                     <li><a href="/applicant/verification" class="nav-link"><i class="fas fa-check-double"></i> Verify Trust</a></li>
