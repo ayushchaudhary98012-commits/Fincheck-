@@ -70,7 +70,7 @@ def send_otp_email(to_email, otp):
     try:
         from email.utils import formatdate, make_msgid
         msg = MIMEMultipart()
-        msg['From'] = f"FinCheck AI <{email_user}>"
+        msg['From'] = email_user
         msg['To'] = target_email
         msg['Subject'] = f"FinCheck Verification Code: {otp}"
         msg['Date'] = formatdate(localtime=True)
