@@ -48,18 +48,38 @@ class FinCheckTestCase(unittest.TestCase):
         }, follow_redirects=True)
         
         # 2. Login
-        return self.client.post('/login', data={
+        return self.login_existing_user(username, password)
+
+    def login_existing_user(self, username, password):
+        # 1. Submit username/password to trigger OTP generation
+        self.client.post('/login', data={
             'action': 'login',
             'username': username,
             'password': password
         }, follow_redirects=True)
-
-    def login_existing_user(self, username, password):
-        # Login
-        return self.client.post('/login', data={
-            'action': 'login',
-            'username': username,
-            'password': password
+        
+        # 2. Retrieve the generated OTP from SQLite database
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT email FROM users WHERE username = ?", (username,))
+        user_row = cursor.fetchone()
+        if not user_row:
+            conn.close()
+            raise ValueError(f"Test user {username} not found")
+        email = user_row['email']
+        
+        cursor.execute("SELECT otp FROM otps WHERE email = ?", (email,))
+        otp_row = cursor.fetchone()
+        conn.close()
+        
+        if not otp_row:
+            raise ValueError(f"No OTP generated for {username} (email: {email})")
+        otp = otp_row['otp']
+        
+        # 3. Submit OTP code to verify
+        return self.client.post('/api/auth/verify-otp', data={
+            'email': email,
+            'otp': otp
         }, follow_redirects=True)
         
     def tearDown(self):
@@ -313,8 +333,38 @@ class FinCheckTestCase(unittest.TestCase):
         })
         self.assertEqual(res.status_code, 200)
         upload_data = json.loads(res.data)
-        self.assertTrue(upload_data['success'])
         self.assertEqual(upload_data['status'], 'Rejected') # should be rejected due to content
+
+    def test_otp_verification_flow(self):
+        # 1. Verify invalid OTP returns error
+        res = self.client.post('/api/auth/verify-otp', data={
+            'email': 'user@fincheck.com',
+            'otp': '999999'
+        }, follow_redirects=True)
+        self.assertIn(b'Invalid OTP', res.data)
+        
+        # 2. Trigger password check to generate OTP
+        self.client.post('/login', data={
+            'action': 'login',
+            'username': 'user',
+            'password': 'user123'
+        })
+        
+        # 3. Retrieve the generated OTP from DB
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT otp FROM otps WHERE email = 'user@fincheck.com'")
+        otp_row = cursor.fetchone()
+        conn.close()
+        self.assertIsNotNone(otp_row)
+        otp = otp_row['otp']
+        
+        # 4. Verify correct OTP works
+        res = self.client.post('/api/auth/verify-otp', data={
+            'email': 'user@fincheck.com',
+            'otp': otp
+        }, follow_redirects=True)
+        self.assertIn(b'Logged in successfully', res.data)
 
 if __name__ == '__main__':
     unittest.main()

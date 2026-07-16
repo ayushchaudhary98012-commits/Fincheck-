@@ -122,6 +122,17 @@ def init_db():
         )
     ''')
     
+    # Create OTPs table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS otps (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            otp TEXT NOT NULL,
+            expires_at TIMESTAMP NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
     # Check if a seed admin user exists, if not create one
     cursor.execute("SELECT * FROM users WHERE role = 'admin'")
     if not cursor.fetchone():
